@@ -150,8 +150,8 @@
         </div>
         <dl class="keys" id="ov-keys">
           <dt>Против мастера</dt><dd><kbd>WASD</kbd> или стрелки, <kbd>J</kbd> лёгкий, <kbd>K</kbd> тяжёлый, <kbd>L</kbd> нога, <kbd>I</kbd> суперприём</dd>
-          <dt>Куро вдвоём</dt><dd><kbd>WASD</kbd>, <kbd>F</kbd> <kbd>G</kbd> <kbd>H</kbd> удары, <kbd>R</kbd> суперприём</dd>
-          <dt>Ака вдвоём</dt><dd>стрелки, <kbd>K</kbd> <kbd>L</kbd> <kbd>;</kbd> удары, <kbd>P</kbd> суперприём</dd>
+          <dt>Куро вдвоём</dt><dd><kbd>WASD</kbd>, <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> удары, <kbd>I</kbd> суперприём</dd>
+          <dt>Ака вдвоём</dt><dd>стрелки, <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> на цифровом блоке, <kbd>0</kbd> суперприём. Без цифрового блока <kbd>,</kbd> <kbd>.</kbd> <kbd>/</kbd> и <kbd>'</kbd></dd>
           <dt>Защита</dt><dd>Назад держит блок, вниз и назад держит нижний. Прыжковый удар блокируется только стоя.</dd>
           <dt>Приёмы</dt><dd>Лёгкий, лёгкий, тяжёлый идут серией. Двойное нажатие вперёд даёт рывок. Вниз и нога дают подсечку.</dd>
         </dl>
@@ -1413,9 +1413,10 @@
   const keys = new Set();
   const touchHeld = { left: false, right: false, up: false, down: false };
   const padPrev = [{}, {}];
+  // Kuro keeps the solo layout (J K L I, or F G H R); Aka sits on the numpad, or , . / ' on a laptop without one
   const BTN_2P = [
-    { KeyF: 'L', KeyG: 'H', KeyH: 'K', KeyR: 'S' },
-    { KeyK: 'L', KeyL: 'H', Semicolon: 'K', KeyP: 'S' },
+    { KeyJ: 'L', KeyK: 'H', KeyL: 'K', KeyI: 'S', KeyF: 'L', KeyG: 'H', KeyH: 'K', KeyR: 'S' },
+    { Numpad1: 'L', Numpad2: 'H', Numpad3: 'K', Numpad0: 'S', Numpad5: 'S', Comma: 'L', Period: 'H', Slash: 'K', Quote: 'S' },
   ];
   const BTN_AI = { KeyJ: 'L', KeyF: 'L', KeyK: 'H', KeyG: 'H', KeyL: 'K', KeyH: 'K', KeyI: 'S', KeyR: 'S' };
   const DIRS = [
