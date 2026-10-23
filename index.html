@@ -584,7 +584,7 @@
   }
   // ---------- recorded score (music/manifest.json): decoded loops, sample-exact so the seam never clicks ----------
   // a decoded minute of stereo is ~20 MB, so at most three tracks stay in memory (least recently used goes)
-  const MF = { ready: false, list: {}, buf: {}, used: {}, loading: {}, slot: null, cur: null, vol: -1, level: 0.6, victoryUntil: 0 };
+  const MF = { ready: false, list: {}, buf: {}, used: {}, loading: {}, slot: null, cur: null, vol: -1, level: 0.45, victoryUntil: 0 };
   async function loadMusic() {
     try {
       const r = await fetch('music/manifest.json');
