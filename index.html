@@ -608,7 +608,7 @@
   }
   function fileMusic(now) {
     if (MU.bus && MU.mode !== 'off') { MU.bus.gain.setTargetAtTime(0, now, 0.3); MU.mode = 'off'; }
-    const want = musicMode(), L = MF.list, fights = ['fight', 'fight1', 'fight2', 'fight3'].filter((k) => L[k]);
+    const want = musicMode(), L = MF.list, fights = ['fight', 'fight1', 'fight2', 'fight3', 'fight4', 'fight5'].filter((k) => L[k]);
     const fight = fights.length ? fights[(Math.max(1, G.round) - 1 + MU.offset) % fights.length] : null;
     let slot = null;
     if (want === 'menu' || want === 'credits') slot = now < MF.victoryUntil ? null : want === 'credits' && L.credits ? 'credits' : L.menu ? 'menu' : null;
@@ -1814,7 +1814,7 @@
   }
   function startMatch(mode) {
     audioInit();
-    MU.offset = Math.floor(Math.random() * 3);
+    MU.offset = Math.floor(Math.random() * 5);
     if (document.activeElement) document.activeElement.blur();
     tok++; tasks = []; tweens = [];
     G.mode = mode; G.round = 0; G.hud = false; G.black = 0; G.ts = 1; G.slowUntil = 0; G.title = null; G.sil = 0;
