@@ -582,8 +582,9 @@
       }
     }
   }
-  // ---------- recorded score (music/manifest.json): streamed <audio> elements so a phone never holds decoded songs in memory ----------
-  const MF = { ready: false, list: {}, el: {}, slot: null, vol: -1, level: 0.7 };
+  // ---------- recorded score (music/manifest.json): decoded loops, sample-exact so the seam never clicks ----------
+  // a decoded minute of stereo is ~20 MB, so at most three tracks stay in memory (least recently used goes)
+  const MF = { ready: false, list: {}, buf: {}, used: {}, loading: {}, slot: null, cur: null, vol: -1, level: 0.6, victoryUntil: 0 };
   async function loadMusic() {
     try {
       const r = await fetch('music/manifest.json');
@@ -593,40 +594,51 @@
       MF.ready = Object.keys(MF.list).length > 0;
     } catch { /* no recorded score: the synthesized one plays */ }
   }
-  function track(slot) {
-    if (!MF.el[slot]) {
-      const el = new Audio(`music/${MF.list[slot]}`), g = AU.c.createGain();
-      el.loop = slot !== 'victory'; el.preload = 'auto'; g.gain.value = 0;
-      AU.c.createMediaElementSource(el).connect(g); g.connect(AU.m);
-      MF.el[slot] = { el, g };
-    }
-    return MF.el[slot];
+  async function loadTrack(slot) {
+    if (!slot || MF.buf[slot] || MF.loading[slot]) return;
+    MF.loading[slot] = true;
+    try {
+      const r = await fetch(`music/${MF.list[slot]}`);
+      MF.buf[slot] = await AU.c.decodeAudioData(await r.arrayBuffer());
+      MF.used[slot] = AU.c.currentTime;
+      const held = Object.keys(MF.buf).sort((a, b) => MF.used[b] - MF.used[a]);
+      for (const k of held.slice(3)) if (k !== MF.slot) delete MF.buf[k];
+    } catch { /* a missing or broken file leaves that screen silent */ }
+    MF.loading[slot] = false;
   }
   function fileMusic(now) {
     if (MU.bus && MU.mode !== 'off') { MU.bus.gain.setTargetAtTime(0, now, 0.3); MU.mode = 'off'; }
     const want = musicMode(), L = MF.list, fights = ['fight', 'fight1', 'fight2', 'fight3'].filter((k) => L[k]);
-    const victory = MF.el.victory && !MF.el.victory.el.paused;
+    const fight = fights.length ? fights[(Math.max(1, G.round) - 1 + MU.offset) % fights.length] : null;
     let slot = null;
-    if (want === 'menu' || want === 'credits') slot = victory ? null : want === 'credits' && L.credits ? 'credits' : L.menu ? 'menu' : null;
+    if (want === 'menu' || want === 'credits') slot = now < MF.victoryUntil ? null : want === 'credits' && L.credits ? 'credits' : L.menu ? 'menu' : null;
     else if (want === 'hot' && L.finale) slot = 'finale';
-    else if (want !== 'off' && fights.length) slot = fights[(Math.max(1, G.round) - 1 + MU.offset) % fights.length];
+    else if (want !== 'off') slot = fight;
+    // warm up what plays next: the fight from the menu, the finale during the fight
+    loadTrack(want === 'menu' ? fight : want === 'fight' || want === 'calm' ? L.finale && 'finale' : null);
     const vol = MU.on ? MF.level * (G.cine ? 0.3 : 1) : 0;
     if (slot !== MF.slot) {
-      const prev = MF.slot, old = prev && MF.el[prev];
-      if (old) { old.g.gain.setTargetAtTime(0, now, 0.35); setTimeout(() => { if (MF.slot !== prev) old.el.pause(); }, 2000); }
+      if (MF.cur) { const { src, g } = MF.cur; g.gain.setTargetAtTime(0, now, 0.35); src.stop(now + 2); MF.cur = null; }
       MF.slot = slot;
-      if (slot) {
-        const t = track(slot);
-        if (t.el.paused) { t.el.currentTime = 0; t.el.play().catch(() => {}); }
-        t.g.gain.setTargetAtTime(vol, now, 0.4);
-      }
-      MF.vol = vol;
-    } else if (slot && vol !== MF.vol) { MF.vol = vol; MF.el[slot].g.gain.setTargetAtTime(vol, now, 0.15); }
+    }
+    if (slot && !MF.cur) {
+      const b = MF.buf[slot];
+      if (!b) { loadTrack(slot); return; }
+      const src = AU.c.createBufferSource(), g = AU.c.createGain();
+      src.buffer = b; src.loop = true; g.gain.value = 0;
+      src.connect(g); g.connect(AU.m); src.start(now + 0.05);
+      g.gain.setTargetAtTime(vol, now, 0.4);
+      MF.cur = { src, g }; MF.vol = vol; MF.used[slot] = now;
+    } else if (MF.cur && vol !== MF.vol) { MF.vol = vol; MF.cur.g.gain.setTargetAtTime(vol, now, 0.15); }
   }
-  function playVictory() {
+  async function playVictory() {
     if (!MF.ready || !MF.list.victory) return;
-    const t = track('victory');
-    t.el.currentTime = 0; t.g.gain.value = MU.on ? MF.level : 0; t.el.play().catch(() => {});
+    await loadTrack('victory');
+    const b = MF.buf.victory;
+    if (!b || !MU.on) return;
+    const src = AU.c.createBufferSource(), g = AU.c.createGain();
+    src.buffer = b; g.gain.value = MF.level; src.connect(g); g.connect(AU.m); src.start();
+    MF.victoryUntil = AU.c.currentTime + b.duration;
   }
   function musicTick() {
     if (!AU.c) return;
