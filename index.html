@@ -417,7 +417,7 @@
     const g = c.createGain(); g.gain.value = 0;
     src.connect(bp); bp.connect(g); g.connect(AU.m); src.start();
     AU.mur = g;
-    loadVoices();
+    loadVoices(); loadMusic();
   }
   // ---------- recorded voice lines (voice/manifest.json); every call site falls back to synthesis ----------
   const VO = {};
@@ -617,9 +617,55 @@
       }
     }
   }
+  // ---------- recorded score (music/manifest.json): streamed <audio> elements so a phone never holds decoded songs in memory ----------
+  const MF = { ready: false, list: {}, el: {}, slot: null, vol: -1, level: 0.7 };
+  async function loadMusic() {
+    try {
+      const r = await fetch('music/manifest.json');
+      if (!r.ok) return;
+      MF.list = await r.json();
+      MF.ready = Object.keys(MF.list).length > 0;
+    } catch { /* no recorded score: the synthesized one plays */ }
+  }
+  function track(slot) {
+    if (!MF.el[slot]) {
+      const el = new Audio(`music/${MF.list[slot]}`), g = AU.c.createGain();
+      el.loop = slot !== 'victory'; el.preload = 'auto'; g.gain.value = 0;
+      AU.c.createMediaElementSource(el).connect(g); g.connect(AU.m);
+      MF.el[slot] = { el, g };
+    }
+    return MF.el[slot];
+  }
+  function fileMusic(now) {
+    if (MU.bus && MU.mode !== 'off') { MU.bus.gain.setTargetAtTime(0, now, 0.3); MU.mode = 'off'; }
+    const want = musicMode(), L = MF.list, fights = ['fight1', 'fight2', 'fight3'].filter((k) => L[k]);
+    const victory = MF.el.victory && !MF.el.victory.el.paused;
+    let slot = null;
+    if (want === 'menu') slot = L.menu && !victory ? 'menu' : null;
+    else if (want === 'hot' && L.finale) slot = 'finale';
+    else if (want !== 'off' && fights.length) slot = fights[(Math.max(1, G.round) - 1 + MU.offset) % fights.length];
+    const vol = MU.on ? MF.level * (G.cine ? 0.3 : 1) : 0;
+    if (slot !== MF.slot) {
+      const prev = MF.slot, old = prev && MF.el[prev];
+      if (old) { old.g.gain.setTargetAtTime(0, now, 0.35); setTimeout(() => { if (MF.slot !== prev) old.el.pause(); }, 2000); }
+      MF.slot = slot;
+      if (slot) {
+        const t = track(slot);
+        if (t.el.paused) { t.el.currentTime = 0; t.el.play().catch(() => {}); }
+        t.g.gain.setTargetAtTime(vol, now, 0.4);
+      }
+      MF.vol = vol;
+    } else if (slot && vol !== MF.vol) { MF.vol = vol; MF.el[slot].g.gain.setTargetAtTime(vol, now, 0.15); }
+  }
+  function playVictory() {
+    if (!MF.ready || !MF.list.victory) return;
+    const t = track('victory');
+    t.el.currentTime = 0; t.g.gain.value = MU.on ? MF.level : 0; t.el.play().catch(() => {});
+  }
   function musicTick() {
     if (!AU.c) return;
     const c = AU.c, now = c.currentTime;
+    if (MF.ready) return fileMusic(now);
     if (!MU.bus) { MU.bus = c.createGain(); MU.bus.gain.value = 0; MU.bus.connect(AU.m); }
     const want = musicMode(), duck = G.cine ? 0.25 : 1;
     if (want !== MU.mode) {
@@ -1882,7 +1928,7 @@
     G.state = 'end';
     setState(w, 'pose'); w.target = { ...P.win }; w.tk = 0.12; w.vx = 0;
     G.camLock = true; tween(cam, { x: w.x, zoom: RM ? 1 : 1.18, y: H / 2 - 30 }, 1, E.io);
-    confetti(); cheer(3.4, 1.1); sfx.taiko(1); sfx.gong(1); after(0.25, () => sfx.taiko(0.8));
+    confetti(); cheer(3.4, 1.1); sfx.taiko(1); sfx.gong(1); after(0.25, () => sfx.taiko(0.8)); playVictory();
     kakegoe('日本一!'); after(0.4, () => kakegoe('大当たり!'));
     after(0.9, () => say(winLine(w))); after(2.2, () => say(`${who(w)}_win`));
     after(3.0, () => { [0, 0.3, 0.55, 0.75, 0.9].forEach((t) => after(t, () => sfx.clack(0.6))); tween(curtain, { open: 0 }, 1.6, E.io); });
@@ -1904,7 +1950,7 @@
       say('curtain');
     });
     after(2.4, () => say(winLine(f)));
-    after(1.4, () => { f.target = { ...P.mie }; f.tk = 0.15; f.cross = 1; sfx.gong(1); say(`${who(f)}_win`); sfx.tsuke(1.2); after(0.09, () => sfx.tsuke(1.2)); confetti(); });
+    after(1.4, () => { f.target = { ...P.mie }; f.tk = 0.15; f.cross = 1; sfx.gong(1); playVictory(); say(`${who(f)}_win`); sfx.tsuke(1.2); after(0.09, () => sfx.tsuke(1.2)); confetti(); });
     after(2.2, () => {
       [0, 0.12, 0.24, 0.34, 0.42, 0.5].forEach((t) => after(t, () => sfx.clack(0.8)));
       tween(curtain, { open: 0 }, 0.9, E.i, () => { sfx.thud(0.6); shake(4); });
