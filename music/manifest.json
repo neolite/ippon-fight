@@ -1,6 +1,8 @@
 {
  "menu": "menu.mp3",
- "fight": "fight.mp3",
+ "fight1": "fight1.mp3",
+ "fight2": "fight2.mp3",
+ "fight3": "fight3.mp3",
  "finale": "finale.mp3",
  "credits": "credits.mp3"
 }
