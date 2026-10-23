@@ -627,7 +627,7 @@
       const src = AU.c.createBufferSource(), g = AU.c.createGain();
       src.buffer = b; src.loop = true; g.gain.value = 0;
       src.connect(g); g.connect(AU.m); src.start(now + 0.05);
-      g.gain.setTargetAtTime(vol, now, 0.4);
+      g.gain.setTargetAtTime(vol, now, 0.9); // a slow swell: loops open on the full band
       MF.cur = { src, g }; MF.vol = vol; MF.used[slot] = now;
     } else if (MF.cur && vol !== MF.vol) { MF.vol = vol; MF.cur.g.gain.setTargetAtTime(vol, now, 0.15); }
   }
